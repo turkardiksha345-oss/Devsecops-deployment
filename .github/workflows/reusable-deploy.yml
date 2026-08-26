@@ -136,25 +136,26 @@ jobs:
       - name: Record Deployment Completion
         id: deploy-status
         if: success()
+        env:
+          EC2_TARGET_HOST: ${{ secrets.ec2-host }}
+          EC2_TARGET_USER: ${{ secrets.ec2-user }}
+          APP_PORT: ${{ inputs.app-port }}
+          APP_ENV: ${{ inputs.environment }}
+          IMAGE_URI: ${{ inputs.image-uri }}
         run: |
           echo "status=success" >> $GITHUB_OUTPUT
           if [ -n "$GITHUB_STEP_SUMMARY" ]; then
-            cat << 'EOF' >> $GITHUB_STEP_SUMMARY
-## 🚀 AWS EC2 Deployment Status: SUCCESS
-
-| Parameter | Configuration / Value |
-| :--- | :--- |
-| **Target Host** | `${{ secrets.ec2-host }}` |
-| **SSH User** | `${{ secrets.ec2-user }}` |
-| **Container Name** | `devsecops-flask-app` |
-| **Container Port** | `${{ inputs.app-port }}` (and Port `80`) |
-| **Environment** | `${{ inputs.environment }}` |
-| **Docker Image** | `${{ inputs.image-uri }}` |
-
-### 🔗 Live Service Endpoints
-- 🏠 **Application Homepage**: [http://${{ secrets.ec2-host }}:${{ inputs.app-port }}/](http://${{ secrets.ec2-host }}:${{ inputs.app-port }}/)
-- 💓 **Health Check**: [http://${{ secrets.ec2-host }}:${{ inputs.app-port }}/health](http://${{ secrets.ec2-host }}:${{ inputs.app-port }}/health)
-- 📊 **Status API**: [http://${{ secrets.ec2-host }}:${{ inputs.app-port }}/api/status](http://${{ secrets.ec2-host }}:${{ inputs.app-port }}/api/status)
-EOF
+            echo "## 🚀 AWS EC2 Deployment Status: SUCCESS" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- **Target Host**: \`$EC2_TARGET_HOST\`" >> $GITHUB_STEP_SUMMARY
+            echo "- **Container Name**: \`devsecops-flask-app\`" >> $GITHUB_STEP_SUMMARY
+            echo "- **Port**: \`$APP_PORT\` (and Port 80)" >> $GITHUB_STEP_SUMMARY
+            echo "- **Environment**: \`$APP_ENV\`" >> $GITHUB_STEP_SUMMARY
+            echo "- **Docker Image**: \`$IMAGE_URI\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔗 Live Service Endpoints" >> $GITHUB_STEP_SUMMARY
+            echo "- 🏠 **Application Homepage**: [http://$EC2_TARGET_HOST:$APP_PORT/](http://$EC2_TARGET_HOST:$APP_PORT/)" >> $GITHUB_STEP_SUMMARY
+            echo "- 💓 **Health Check**: [http://$EC2_TARGET_HOST:$APP_PORT/health](http://$EC2_TARGET_HOST:$APP_PORT/health)" >> $GITHUB_STEP_SUMMARY
+            echo "- 📊 **Status API**: [http://$EC2_TARGET_HOST:$APP_PORT/api/status](http://$EC2_TARGET_HOST:$APP_PORT/api/status)" >> $GITHUB_STEP_SUMMARY
           fi
-          echo "[+] Application successfully deployed to http://${{ secrets.ec2-host }}:${{ inputs.app-port }}"
+          echo "[+] Application successfully deployed to http://$EC2_TARGET_HOST:$APP_PORT"
