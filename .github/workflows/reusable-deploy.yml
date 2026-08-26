@@ -138,4 +138,23 @@ jobs:
         if: success()
         run: |
           echo "status=success" >> $GITHUB_OUTPUT
+          if [ -n "$GITHUB_STEP_SUMMARY" ]; then
+            cat << 'EOF' >> $GITHUB_STEP_SUMMARY
+## 🚀 AWS EC2 Deployment Status: SUCCESS
+
+| Parameter | Configuration / Value |
+| :--- | :--- |
+| **Target Host** | `${{ secrets.ec2-host }}` |
+| **SSH User** | `${{ secrets.ec2-user }}` |
+| **Container Name** | `devsecops-flask-app` |
+| **Container Port** | `${{ inputs.app-port }}` (and Port `80`) |
+| **Environment** | `${{ inputs.environment }}` |
+| **Docker Image** | `${{ inputs.image-uri }}` |
+
+### 🔗 Live Service Endpoints
+- 🏠 **Application Homepage**: [http://${{ secrets.ec2-host }}:${{ inputs.app-port }}/](http://${{ secrets.ec2-host }}:${{ inputs.app-port }}/)
+- 💓 **Health Check**: [http://${{ secrets.ec2-host }}:${{ inputs.app-port }}/health](http://${{ secrets.ec2-host }}:${{ inputs.app-port }}/health)
+- 📊 **Status API**: [http://${{ secrets.ec2-host }}:${{ inputs.app-port }}/api/status](http://${{ secrets.ec2-host }}:${{ inputs.app-port }}/api/status)
+EOF
+          fi
           echo "[+] Application successfully deployed to http://${{ secrets.ec2-host }}:${{ inputs.app-port }}"
