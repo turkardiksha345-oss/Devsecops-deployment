@@ -21,7 +21,7 @@ class Config:
     ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
     DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
     PORT = int(os.getenv("PORT", "5000"))
-    HOST = os.getenv("HOST", "0.0.0.0")
+    HOST = os.getenv("HOST", "0.0.0.0")  # nosec B104
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-insecure-secret-key-change-in-prod")
     JSON_SORT_KEYS = False
 
