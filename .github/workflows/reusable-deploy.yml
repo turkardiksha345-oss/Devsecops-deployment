@@ -56,7 +56,7 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Validate Deployment Trigger Origin
+      - name: Validate Deployment Target & Security Context
         run: |
           echo "=========================================================="
           echo " Validating Deployment Target & Security Context"
@@ -67,6 +67,15 @@ jobs:
           echo "=========================================================="
           if [ "${{ github.ref }}" != "refs/heads/main" ]; then
             echo "[!] Security Violation: Deployment is restricted to 'main' branch!"
+            exit 1
+          fi
+
+          if [ -z "${{ secrets.ec2-host }}" ] || [ -z "${{ secrets.ec2-user }}" ] || [ -z "${{ secrets.ec2-ssh-key }}" ]; then
+            echo "[!] ERROR: Required EC2 Secrets are missing!"
+            echo "Please add the following secrets in GitHub Settings > Secrets and variables > Actions:"
+            echo "  1. EC2_HOST: Public IP of your EC2 instance (e.g. 54.210.35.120)"
+            echo "  2. EC2_USER: Linux user (e.g. ubuntu)"
+            echo "  3. EC2_SSH_KEY: Private SSH PEM key content"
             exit 1
           fi
 
