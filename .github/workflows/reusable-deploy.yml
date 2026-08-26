@@ -1,0 +1,117 @@
+name: Reusable EC2 Deployment
+
+on:
+  workflow_call:
+    inputs:
+      image-uri:
+        description: "Full container image URI to deploy on AWS EC2"
+        required: true
+        type: string
+      app-port:
+        description: "Host port to map application on EC2"
+        required: false
+        default: "5000"
+        type: string
+      environment:
+        description: "Deployment environment target"
+        required: false
+        default: "production"
+        type: string
+    secrets:
+      ec2-host:
+        description: "Public IP or DNS of the AWS EC2 instance"
+        required: true
+      ec2-user:
+        description: "SSH user for the EC2 instance (e.g. ubuntu, ec2-user)"
+        required: true
+      ec2-ssh-key:
+        description: "Private SSH Key (PEM) for EC2 authentication"
+        required: true
+      ghcr-token:
+        description: "GitHub Container Registry Token for image pulling"
+        required: false
+      aws-access-key-id:
+        description: "AWS Access Key ID (Optional if using IAM roles)"
+        required: false
+      aws-secret-access-key:
+        description: "AWS Secret Access Key (Optional if using IAM roles)"
+        required: false
+      aws-region:
+        description: "AWS Region"
+        required: false
+    outputs:
+      deployment-status:
+        description: "Status result of the EC2 deployment"
+        value: ${{ jobs.deploy.outputs.status }}
+
+jobs:
+  deploy:
+    name: Deploy to AWS EC2 (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    outputs:
+      status: ${{ steps.deploy-status.outputs.status }}
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Validate Deployment Trigger Origin
+        run: |
+          echo "=========================================================="
+          echo " Validating Deployment Target & Security Context"
+          echo " Branch Ref:    ${{ github.ref }}"
+          echo " Target Host:   ${{ secrets.ec2-host }}"
+          echo " Environment:   ${{ inputs.environment }}"
+          echo " Image URI:     ${{ inputs.image-uri }}"
+          echo "=========================================================="
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "[!] Security Violation: Deployment is restricted to 'main' branch!"
+            exit 1
+          fi
+
+      - name: Configure SSH Key & Known Hosts
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.ec2-ssh-key }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          # Add EC2 host key to known_hosts to prevent MITM attacks
+          ssh-keyscan -H -p 22 "${{ secrets.ec2-host }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Copy Deployment Script to EC2
+        run: |
+          echo "[*] Transferring deployment automation script to EC2..."
+          scp -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_rsa \
+            scripts/deploy-remote.sh "${{ secrets.ec2-user }}@${{ secrets.ec2-host }}:/tmp/deploy-remote.sh"
+          
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_rsa \
+            "${{ secrets.ec2-user }}@${{ secrets.ec2-host }}" "chmod +x /tmp/deploy-remote.sh"
+
+      - name: Execute Deployment on EC2
+        env:
+          REGISTRY_PASSWORD: ${{ secrets.ghcr-token || secrets.GITHUB_TOKEN }}
+        run: |
+          echo "[*] Authenticating and executing deployment script on EC2..."
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_rsa "${{ secrets.ec2-user }}@${{ secrets.ec2-host }}" \
+            "echo '${REGISTRY_PASSWORD}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin 2>/dev/null || true; \
+             /tmp/deploy-remote.sh '${{ inputs.image-uri }}' '${{ inputs.app-port }}' 'devsecops-flask-app'"
+
+      - name: External Healthcheck Verification
+        run: |
+          echo "[*] Validating public availability of endpoint: http://${{ secrets.ec2-host }}:${{ inputs.app-port }}/health..."
+          for i in {1..10}; do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://${{ secrets.ec2-host }}:${{ inputs.app-port }}/health" || echo "000")
+            if [ "$HTTP_STATUS" -eq 200 ]; then
+              echo "[+] Public health endpoint verified with HTTP 200 OK!"
+              break
+            fi
+            echo "    Waiting for external DNS/networking propagation (Attempt $i/10, HTTP status: $HTTP_STATUS)..."
+            sleep 3
+          done
+
+      - name: Record Deployment Completion
+        id: deploy-status
+        if: success()
+        run: |
+          echo "status=success" >> $GITHUB_OUTPUT
+          echo "[+] Application successfully deployed to http://${{ secrets.ec2-host }}:${{ inputs.app-port }}"

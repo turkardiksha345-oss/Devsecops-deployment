@@ -1,0 +1,59 @@
+name: Reusable Build
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: "Python version to use for build environment"
+        required: false
+        default: "3.11"
+        type: string
+    outputs:
+      build-status:
+        description: "Status result of the application build"
+        value: ${{ jobs.build.outputs.status }}
+      artifact-name:
+        description: "Name of the generated build package artifact"
+        value: ${{ jobs.build.outputs.artifact_name }}
+
+jobs:
+  build:
+    name: Build & Package Application
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.build-check.outputs.status }}
+      artifact_name: "flask-app-build-${{ github.sha }}"
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ inputs.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: "pip"
+
+      - name: Upgrade Pip & Install Dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+
+      - name: Validate Python Syntax & Bytecode Compilation
+        id: build-check
+        run: |
+          echo "[*] Compiling Python source code to bytecode..."
+          python -m compileall app/
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: Package Build Artifact
+        run: |
+          mkdir -p dist
+          tar -czf dist/app-package.tar.gz app requirements.txt
+
+      - name: Upload Application Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: "flask-app-build-${{ github.sha }}"
+          path: dist/app-package.tar.gz
+          retention-days: 7

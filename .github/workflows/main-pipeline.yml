@@ -1,0 +1,124 @@
+name: Main DevSecOps Orchestration Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+      - "fix/**"
+      - "release/**"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  packages: write
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  # ============================================================================
+  # Stage 1: Application Build & Compilation
+  # ============================================================================
+  build:
+    name: "Stage 1: Build Application"
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      python-version: "3.11"
+
+  # ============================================================================
+  # Stage 2: Unit Testing, Coverage & Static Code Checks
+  # ============================================================================
+  test:
+    name: "Stage 2: Tests & Linting"
+    needs: [build]
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      python-version: "3.11"
+
+  # ============================================================================
+  # Stage 3: Container Image Build & GHCR Publishing
+  # ============================================================================
+  docker-build:
+    name: "Stage 3: Docker Container Build"
+    needs: [test]
+    uses: ./.github/workflows/reusable-image-build.yml
+    with:
+      push: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+      registry: "ghcr.io"
+    secrets:
+      registry-token: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================================
+  # Stage 4: DevSecOps Multi-Scanner Security Suite
+  # ============================================================================
+  security-scans:
+    name: "Stage 4: Security Scans (SonarQube, Trivy, Snyk, ZAP)"
+    needs: [docker-build]
+    uses: ./.github/workflows/reusable-security-scan.yml
+    with:
+      image-tag: ${{ needs.docker-build.outputs.image-tag }}
+      image-uri: ${{ needs.docker-build.outputs.image-uri }}
+    secrets:
+      sonar-token: ${{ secrets.SONAR_TOKEN }}
+      sonar-host-url: ${{ secrets.SONAR_HOST_URL }}
+      snyk-token: ${{ secrets.SNYK_TOKEN }}
+
+  # ============================================================================
+  # Stage 5: Publish Security Reports to GitHub Pages (Main Branch Only)
+  # ============================================================================
+  publish-reports:
+    name: "Stage 5: Publish Security Dashboard to GitHub Pages"
+    needs: [security-scans]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download Security Reports Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: security-reports-portal
+          path: reports/
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: reports/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # ============================================================================
+  # Stage 6: Production Deployment to AWS EC2 (Main Branch Only)
+  # ============================================================================
+  deploy:
+    name: "Stage 6: Deploy to AWS EC2"
+    needs: [docker-build, security-scans]
+    # STRICT GUARD: Deploy ONLY runs on main branch pushes (e.g. after PR merge)
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    uses: ./.github/workflows/reusable-deploy.yml
+    with:
+      image-uri: ${{ needs.docker-build.outputs.image-uri }}
+      app-port: "5000"
+      environment: "production"
+    secrets:
+      ec2-host: ${{ secrets.EC2_HOST }}
+      ec2-user: ${{ secrets.EC2_USER }}
+      ec2-ssh-key: ${{ secrets.EC2_SSH_KEY }}
+      ghcr-token: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+      aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      aws-region: ${{ secrets.AWS_REGION }}

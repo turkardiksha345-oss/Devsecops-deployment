@@ -1,0 +1,396 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - {{ app_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .hero {
+        margin-bottom: 2.5rem;
+    }
+
+    .hero-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        letter-spacing: -0.025em;
+        line-height: 1.2;
+        margin-bottom: 0.75rem;
+        background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #94a3b8 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+        color: var(--text-secondary);
+        font-size: 1.1rem;
+        max-width: 700px;
+    }
+
+    .grid-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 1.5rem;
+        backdrop-filter: blur(12px);
+        box-shadow: var(--glass-shadow);
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .card:hover {
+        border-color: var(--border-hover);
+        transform: translateY(-2px);
+    }
+
+    .stat-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-secondary);
+    }
+
+    .stat-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+    }
+
+    .icon-emerald { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); }
+    .icon-indigo { background: rgba(99, 102, 241, 0.15); color: var(--accent-primary); }
+    .icon-cyan { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); }
+    .icon-amber { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); }
+
+    .stat-value {
+        font-size: 1.85rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .stat-meta {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-top: 0.25rem;
+    }
+
+    .section-title {
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .grid-two {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 2.5rem;
+    }
+
+    @media (max-width: 860px) {
+        .grid-two {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .security-badge-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .sec-badge {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        padding: 1rem;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .sec-badge-icon {
+        font-size: 1.5rem;
+    }
+
+    .sec-badge-name {
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .sec-badge-desc {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+    }
+
+    .api-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.85rem 1rem;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.02);
+        margin-bottom: 0.65rem;
+        border: 1px solid var(--border-color);
+        transition: background 0.2s ease;
+    }
+
+    .api-row:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .api-method {
+        background: rgba(16, 185, 129, 0.2);
+        color: var(--accent-emerald);
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 0.75rem;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .api-endpoint {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+    }
+
+    .btn-test {
+        background: rgba(99, 102, 241, 0.2);
+        color: #a5b4fc;
+        border: 1px solid rgba(99, 102, 241, 0.4);
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .btn-test:hover {
+        background: var(--accent-primary);
+        color: white;
+    }
+
+    .pipeline-stepper {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+        margin-top: 1.5rem;
+    }
+
+    .pipeline-stepper::before {
+        content: '';
+        position: absolute;
+        top: 20px;
+        left: 30px;
+        right: 30px;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.1);
+        z-index: 1;
+    }
+
+    .step-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        z-index: 2;
+        text-align: center;
+    }
+
+    .step-circle {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: var(--bg-secondary);
+        border: 2px solid var(--accent-emerald);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--accent-emerald);
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+        box-shadow: 0 0 15px rgba(16, 185, 129, 0.25);
+    }
+
+    .step-title {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .step-desc {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <h1 class="hero-title">{{ app_name }}</h1>
+    <p class="hero-subtitle">Production-grade Python Flask workload orchestrated via reusable GitHub Actions workflows with automated security scanning and continuous deployment to AWS EC2.</p>
+</div>
+
+<!-- Stats Grid -->
+<div class="grid-stats">
+    <div class="card">
+        <div class="stat-card-header">
+            <span class="stat-label">System Status</span>
+            <div class="stat-icon icon-emerald"><i class="fa-solid fa-circle-check"></i></div>
+        </div>
+        <div class="stat-value" style="color: var(--accent-emerald);">{{ status }}</div>
+        <div class="stat-meta">Healthcheck: UP (HTTP 200)</div>
+    </div>
+
+    <div class="card">
+        <div class="stat-card-header">
+            <span class="stat-label">Application Uptime</span>
+            <div class="stat-icon icon-indigo"><i class="fa-solid fa-clock"></i></div>
+        </div>
+        <div class="stat-value">{{ uptime }}</div>
+        <div class="stat-meta">Started at boot</div>
+    </div>
+
+    <div class="card">
+        <div class="stat-card-header">
+            <span class="stat-label">Memory Utilization</span>
+            <div class="stat-icon icon-cyan"><i class="fa-solid fa-memory"></i></div>
+        </div>
+        <div class="stat-value">{{ memory_usage }}</div>
+        <div class="stat-meta">Container memory</div>
+    </div>
+
+    <div class="card">
+        <div class="stat-card-header">
+            <span class="stat-label">CPU Utilization</span>
+            <div class="stat-icon icon-amber"><i class="fa-solid fa-microchip"></i></div>
+        </div>
+        <div class="stat-value">{{ cpu_usage }}</div>
+        <div class="stat-meta">Host OS: {{ host_os }}</div>
+    </div>
+</div>
+
+<!-- Grid Two: DevSecOps Stack & API Endpoints -->
+<div class="grid-two">
+    <div class="card">
+        <h2 class="section-title"><i class="fa-solid fa-shield-virus" style="color: var(--accent-primary);"></i> Integrated Security Scanners</h2>
+        <div class="security-badge-grid">
+            <div class="sec-badge">
+                <div class="sec-badge-icon" style="color: #4b92db;"><i class="fa-solid fa-code-compare"></i></div>
+                <div>
+                    <div class="sec-badge-name">SonarQube</div>
+                    <div class="sec-badge-desc">Static Code Analysis & Quality Gate</div>
+                </div>
+            </div>
+            <div class="sec-badge">
+                <div class="sec-badge-icon" style="color: #1994e0;"><i class="fa-solid fa-cubes-stacked"></i></div>
+                <div>
+                    <div class="sec-badge-name">Trivy</div>
+                    <div class="sec-badge-desc">Image & Filesystem Vulnerabilities</div>
+                </div>
+            </div>
+            <div class="sec-badge">
+                <div class="sec-badge-icon" style="color: #682bd7;"><i class="fa-solid fa-box-open"></i></div>
+                <div>
+                    <div class="sec-badge-name">Snyk</div>
+                    <div class="sec-badge-desc">Dependencies & Container Scans</div>
+                </div>
+            </div>
+            <div class="sec-badge">
+                <div class="sec-badge-icon" style="color: #005a9c;"><i class="fa-solid fa-spider"></i></div>
+                <div>
+                    <div class="sec-badge-name">OWASP ZAP</div>
+                    <div class="sec-badge-desc">DAST Dynamic Security Scanning</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2 class="section-title"><i class="fa-solid fa-network-wired" style="color: var(--accent-cyan);"></i> Application Endpoints</h2>
+        <div class="api-list">
+            <div class="api-row">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="api-method">GET</span>
+                    <span class="api-endpoint">/health</span>
+                </div>
+                <a href="/health" class="btn-test" target="_blank">Execute <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+            </div>
+            <div class="api-row">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="api-method">GET</span>
+                    <span class="api-endpoint">/api/status</span>
+                </div>
+                <a href="/api/status" class="btn-test" target="_blank">Execute <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+            </div>
+            <div class="api-row">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="api-method">GET</span>
+                    <span class="api-endpoint">/api/info</span>
+                </div>
+                <a href="/api/info" class="btn-test" target="_blank">Execute <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+            </div>
+            <div class="api-row">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="api-method">GET</span>
+                    <span class="api-endpoint">/api/version</span>
+                </div>
+                <a href="/api/version" class="btn-test" target="_blank">Execute <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CI/CD Flow Card -->
+<div class="card">
+    <h2 class="section-title"><i class="fa-solid fa-diagram-project" style="color: var(--accent-emerald);"></i> Reusable CI/CD Orchestration</h2>
+    <div class="pipeline-stepper">
+        <div class="step-item">
+            <div class="step-circle"><i class="fa-solid fa-wrench"></i></div>
+            <div class="step-title">1. Build</div>
+            <div class="step-desc">reusable-build.yml</div>
+        </div>
+        <div class="step-item">
+            <div class="step-circle"><i class="fa-solid fa-vial-circle-check"></i></div>
+            <div class="step-title">2. Test & Lint</div>
+            <div class="step-desc">reusable-test.yml</div>
+        </div>
+        <div class="step-item">
+            <div class="step-circle"><i class="fa-brands fa-docker"></i></div>
+            <div class="step-title">3. Image Build</div>
+            <div class="step-desc">reusable-image-build.yml</div>
+        </div>
+        <div class="step-item">
+            <div class="step-circle"><i class="fa-solid fa-shield-halved"></i></div>
+            <div class="step-title">4. Security Scans</div>
+            <div class="step-desc">reusable-security-scan.yml</div>
+        </div>
+        <div class="step-item">
+            <div class="step-circle"><i class="fa-brands fa-aws"></i></div>
+            <div class="step-title">5. EC2 Deploy</div>
+            <div class="step-desc">reusable-deploy.yml</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
