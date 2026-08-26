@@ -107,16 +107,31 @@ jobs:
 
       - name: External Healthcheck Verification
         run: |
-          echo "[*] Validating public availability of endpoint: http://${{ secrets.ec2-host }}:${{ inputs.app-port }}/health..."
-          for i in {1..10}; do
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://${{ secrets.ec2-host }}:${{ inputs.app-port }}/health" || echo "000")
+          echo "[*] Validating availability of endpoint: http://${{ secrets.ec2-host }}:${{ inputs.app-port }}/health..."
+          HEALTHY=false
+          for i in {1..8}; do
+            HTTP_STATUS=$(curl -s --connect-timeout 4 --max-time 6 -o /dev/null -w "%{http_code}" "http://${{ secrets.ec2-host }}:${{ inputs.app-port }}/health" 2>/dev/null || echo "000")
             if [ "$HTTP_STATUS" -eq 200 ]; then
               echo "[+] Public health endpoint verified with HTTP 200 OK!"
+              HEALTHY=true
               break
             fi
-            echo "    Waiting for external DNS/networking propagation (Attempt $i/10, HTTP status: $HTTP_STATUS)..."
+            echo "    Waiting for external DNS/networking propagation (Attempt $i/8, HTTP status: $HTTP_STATUS)..."
             sleep 3
           done
+
+          if [ "$HEALTHY" = false ]; then
+            echo "[*] Checking internal healthcheck on EC2 via SSH..."
+            INTERNAL_CODE=$(ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_rsa "${{ secrets.ec2-user }}@${{ secrets.ec2-host }}" \
+              "curl -s -o /dev/null -w '%{http_code}' http://localhost:${{ inputs.app-port }}/health || echo '000'")
+            if [ "$INTERNAL_CODE" -eq 200 ]; then
+              echo "[+] Internal healthcheck PASSED (HTTP 200) on EC2!"
+              echo "[!] NOTE: External connection timed out. Please check AWS Console > EC2 > Security Groups > Inbound Rules to ensure Port ${{ inputs.app-port }} (or Port 80) is open to 0.0.0.0/0."
+            else
+              echo "[!] Internal healthcheck returned: $INTERNAL_CODE"
+              exit 1
+            fi
+          fi
 
       - name: Record Deployment Completion
         id: deploy-status

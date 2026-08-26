@@ -775,6 +775,9 @@ def main():
     generate_trivy_report(reports_dir)
     generate_snyk_report(reports_dir)
     generate_owasp_report(reports_dir)
+    # Create .nojekyll to disable Jekyll processing and directly serve pure HTML
+    with open(reports_dir / ".nojekyll", "w", encoding="utf-8") as f:
+        f.write("")
     print(f"[+] Successfully generated reports in '{reports_dir.resolve()}'")
 
 
