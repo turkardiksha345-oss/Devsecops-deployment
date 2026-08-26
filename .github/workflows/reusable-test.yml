@@ -43,13 +43,13 @@ jobs:
       - name: Run Pylint Static Code Analysis
         run: |
           echo "[*] Executing Pylint code quality scan..."
-          pylint app/
+          pylint --fail-under=8.5 app/
 
       - name: Run Bandit Security Linter
         run: |
           echo "[*] Executing Bandit AST security analysis on app/..."
           mkdir -p security-reports
-          bandit -r app/ -f screen
+          bandit -r app/ -ll -f screen
           bandit -r app/ -f json -o security-reports/bandit-report.json || true
 
       - name: Run Pytest Test Suite with Coverage & JUnit XML

@@ -2,7 +2,6 @@
 Unit and Integration Tests for Flask Application.
 """
 
-import json
 import pytest
 from flask.testing import FlaskClient
 

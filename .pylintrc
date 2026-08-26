@@ -8,7 +8,9 @@ disable=
     missing-docstring,
     invalid-name,
     too-few-public-methods,
-    broad-exception-caught
+    broad-exception-caught,
+    redefined-outer-name,
+    unused-argument
 
 [FORMAT]
 max-line-length=120

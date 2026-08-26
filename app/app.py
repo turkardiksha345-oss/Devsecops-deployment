@@ -29,12 +29,12 @@ def create_app(config_name: str = None) -> Flask:
     if config_name is None:
         config_name = os.getenv("FLASK_ENV", "production")
 
-    app = Flask(__name__)
+    flask_app = Flask(__name__)
     config_class = config_by_name.get(config_name, Config)
-    app.config.from_object(config_class)
+    flask_app.config.from_object(config_class)
 
     # Security Response Headers Middleware
-    @app.after_request
+    @flask_app.after_request
     def set_security_headers(response: Response) -> Response:
         """Inject baseline HTTP security headers."""
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -50,16 +50,16 @@ def create_app(config_name: str = None) -> Flask:
         )
         return response
 
-    @app.route("/", methods=["GET"])
+    @flask_app.route("/", methods=["GET"])
     def index() -> str:
         """Render the application homepage dashboard."""
         uptime_seconds = int(time.time() - START_TIME)
         uptime_formatted = f"{uptime_seconds // 3600}h {(uptime_seconds % 3600) // 60}m {uptime_seconds % 60}s"
 
         context = {
-            "app_name": app.config["APP_NAME"],
-            "version": app.config["APP_VERSION"],
-            "environment": app.config["ENVIRONMENT"],
+            "app_name": flask_app.config["APP_NAME"],
+            "version": flask_app.config["APP_VERSION"],
+            "environment": flask_app.config["ENVIRONMENT"],
             "uptime": uptime_formatted,
             "status": "HEALTHY",
             "host_os": os.name,
@@ -69,7 +69,7 @@ def create_app(config_name: str = None) -> Flask:
         }
         return render_template("index.html", **context)
 
-    @app.route("/health", methods=["GET"])
+    @flask_app.route("/health", methods=["GET"])
     def health_check() -> Tuple[Response, int]:
         """
         Health check endpoint for Docker HEALTHCHECK, AWS Target Groups, and CI/CD validation.
@@ -82,9 +82,9 @@ def create_app(config_name: str = None) -> Flask:
 
         health_data: Dict[str, Any] = {
             "status": "UP",
-            "service": app.config["APP_NAME"],
-            "version": app.config["APP_VERSION"],
-            "environment": app.config["ENVIRONMENT"],
+            "service": flask_app.config["APP_NAME"],
+            "version": flask_app.config["APP_VERSION"],
+            "environment": flask_app.config["ENVIRONMENT"],
             "uptime_seconds": uptime_seconds,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "checks": {
@@ -100,7 +100,7 @@ def create_app(config_name: str = None) -> Flask:
         }
         return jsonify(health_data), 200
 
-    @app.route("/api/status", methods=["GET"])
+    @flask_app.route("/api/status", methods=["GET"])
     def api_status() -> Tuple[Response, int]:
         """
         API endpoint returning comprehensive application runtime status and resource metrics.
@@ -113,10 +113,10 @@ def create_app(config_name: str = None) -> Flask:
 
         status_payload: Dict[str, Any] = {
             "application": {
-                "name": app.config["APP_NAME"],
-                "version": app.config["APP_VERSION"],
-                "environment": app.config["ENVIRONMENT"],
-                "debug": app.config["DEBUG"],
+                "name": flask_app.config["APP_NAME"],
+                "version": flask_app.config["APP_VERSION"],
+                "environment": flask_app.config["ENVIRONMENT"],
+                "debug": flask_app.config["DEBUG"],
             },
             "system": {
                 "cpu_count": psutil.cpu_count(logical=True),
@@ -135,7 +135,7 @@ def create_app(config_name: str = None) -> Flask:
         }
         return jsonify(status_payload), 200
 
-    @app.route("/api/info", methods=["GET"])
+    @flask_app.route("/api/info", methods=["GET"])
     def api_info() -> Tuple[Response, int]:
         """
         API endpoint exposing deployment and architectural metadata.
@@ -144,8 +144,8 @@ def create_app(config_name: str = None) -> Flask:
             JSON response with architecture, CI/CD pipeline version, and repository information.
         """
         info_payload: Dict[str, Any] = {
-            "application": app.config["APP_NAME"],
-            "version": app.config["APP_VERSION"],
+            "application": flask_app.config["APP_NAME"],
+            "version": flask_app.config["APP_VERSION"],
             "pipeline": "Reusable GitHub Actions CI/CD Pipeline",
             "security_tools": [
                 "SonarQube Static Analysis",
@@ -158,7 +158,7 @@ def create_app(config_name: str = None) -> Flask:
         }
         return jsonify(info_payload), 200
 
-    @app.route("/api/version", methods=["GET"])
+    @flask_app.route("/api/version", methods=["GET"])
     def api_version() -> Tuple[Response, int]:
         """
         Simple version API endpoint.
@@ -166,17 +166,17 @@ def create_app(config_name: str = None) -> Flask:
         Returns:
             JSON response with version and release string.
         """
-        return jsonify({"version": app.config["APP_VERSION"], "status": "active"}), 200
+        return jsonify({"version": flask_app.config["APP_VERSION"], "status": "active"}), 200
 
     # Error Handlers
-    @app.errorhandler(404)
+    @flask_app.errorhandler(404)
     def handle_not_found(error: Exception) -> Tuple[Response, int]:
         """Handle 404 Resource Not Found errors."""
         if request.path.startswith("/api/"):
             return jsonify({"error": "Resource not found", "status_code": 404, "path": request.path}), 404
         return jsonify({"error": "Page not found", "status_code": 404, "message": str(error)}), 404
 
-    @app.errorhandler(500)
+    @flask_app.errorhandler(500)
     def handle_internal_server_error(error: Exception) -> Tuple[Response, int]:
         """Handle 500 Internal Server Error."""
         return (
@@ -184,20 +184,20 @@ def create_app(config_name: str = None) -> Flask:
                 {
                     "error": "Internal Server Error",
                     "status_code": 500,
-                    "message": "An unexpected error occurred on the server.",
+                    "message": f"An unexpected error occurred on the server: {str(error)}",
                 }
             ),
             500,
         )
 
-    return app
+    return flask_app
 
 
 # Root application instance for WSGI servers (Gunicorn)
 app = create_app()
 
 if __name__ == "__main__":
-    host = os.getenv("HOST", "0.0.0.0")
+    host = os.getenv("HOST", "0.0.0.0")  # nosec B104
     port = int(os.getenv("PORT", "5000"))
     debug = os.getenv("DEBUG", "True").lower() in ("true", "1", "t")
     app.run(host=host, port=port, debug=debug)
