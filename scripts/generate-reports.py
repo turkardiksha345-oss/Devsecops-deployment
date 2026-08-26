@@ -765,23 +765,29 @@ def generate_owasp_report(output_dir: Path) -> None:
 
 
 def write_github_step_summary():
-    """Write simple plain markdown links to GitHub Actions Step Summary."""
+    """Write exact DevSecOps Reports summary format to GitHub Actions Step Summary."""
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if not summary_path:
         return
 
-    summary_md = """
-### 📊 Security Reports (GitHub Pages)
-- **Master Security Portal**: https://turkardiksha345-oss.github.io/Devsecops-deployment/
-- **SonarQube Report**: https://turkardiksha345-oss.github.io/Devsecops-deployment/reports/sonarqube/
-- **Trivy Report**: https://turkardiksha345-oss.github.io/Devsecops-deployment/reports/trivy/
-- **Snyk Report**: https://turkardiksha345-oss.github.io/Devsecops-deployment/reports/snyk/
-- **OWASP ZAP Report**: https://turkardiksha345-oss.github.io/Devsecops-deployment/reports/owasp/
+    summary_md = """# 📊 DevSecOps Reports
 
-### 🚀 AWS EC2 Application Endpoints
-- **Application**: http://13.60.174.209:5000/
-- **Health Check**: http://13.60.174.209:5000/health
-- **Status API**: http://13.60.174.209:5000/api/status
+GitHub Pages reports generated successfully.
+
+### 🔗 Report Links
+
+- 🌐 [DevSecOps Dashboard](https://turkardiksha345-oss.github.io/Devsecops-deployment/)
+- 📦 [Build Report](https://turkardiksha345-oss.github.io/Devsecops-deployment/)
+- 🧪 [Unit Tests](https://turkardiksha345-oss.github.io/Devsecops-deployment/)
+- 📈 [Coverage Report](https://turkardiksha345-oss.github.io/Devsecops-deployment/)
+- 🛡️ [SonarQube Report](https://turkardiksha345-oss.github.io/Devsecops-deployment/reports/sonarqube/)
+- 🛡️ [Snyk Report](https://turkardiksha345-oss.github.io/Devsecops-deployment/reports/snyk/)
+- 🚨 [OWASP ZAP DAST Report](https://turkardiksha345-oss.github.io/Devsecops-deployment/reports/owasp/)
+
+### 🚀 Deployment
+
+- 🌐 [Production GitHub Pages](https://turkardiksha345-oss.github.io/Devsecops-deployment/)
+- 🏠 [AWS EC2 Live Application](http://13.60.174.209:5000/)
 """
     with open(summary_path, "a", encoding="utf-8") as f:
         f.write(summary_md)

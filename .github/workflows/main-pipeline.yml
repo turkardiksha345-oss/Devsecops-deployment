@@ -96,6 +96,28 @@ jobs:
           force_orphan: true
         continue-on-error: true
 
+      - name: Publish DevSecOps Reports Summary
+        if: always()
+        run: |
+          echo "# 📊 DevSecOps Reports" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "GitHub Pages reports generated successfully." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Report Links" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- 🌐 [DevSecOps Dashboard](https://turkardiksha345-oss.github.io/Devsecops-deployment/)" >> $GITHUB_STEP_SUMMARY
+          echo "- 📦 [Build Report](https://turkardiksha345-oss.github.io/Devsecops-deployment/)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🧪 [Unit Tests](https://turkardiksha345-oss.github.io/Devsecops-deployment/)" >> $GITHUB_STEP_SUMMARY
+          echo "- 📈 [Coverage Report](https://turkardiksha345-oss.github.io/Devsecops-deployment/)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🛡️ [SonarQube Report](https://turkardiksha345-oss.github.io/Devsecops-deployment/reports/sonarqube/)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🛡️ [Snyk Report](https://turkardiksha345-oss.github.io/Devsecops-deployment/reports/snyk/)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🚨 [OWASP ZAP DAST Report](https://turkardiksha345-oss.github.io/Devsecops-deployment/reports/owasp/)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- 🌐 [Production GitHub Pages](https://turkardiksha345-oss.github.io/Devsecops-deployment/)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🏠 [AWS EC2 Live Application](http://13.60.174.209:5000/)" >> $GITHUB_STEP_SUMMARY
+
   # ============================================================================
   # Stage 6: Production Deployment to AWS EC2 (Main Branch Only)
   # ============================================================================
