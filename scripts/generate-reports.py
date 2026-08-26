@@ -767,7 +767,9 @@ def generate_owasp_report(output_dir: Path) -> None:
 def main():
     """Main execution entrypoint."""
     reports_dir = Path("reports")
+    docs_dir = Path("docs")
     ensure_dir(reports_dir)
+    ensure_dir(docs_dir)
 
     print("[*] Generating consolidated DevSecOps reports...")
     generate_main_dashboard(reports_dir)
@@ -778,7 +780,16 @@ def main():
     # Create .nojekyll to disable Jekyll processing and directly serve pure HTML
     with open(reports_dir / ".nojekyll", "w", encoding="utf-8") as f:
         f.write("")
-    print(f"[+] Successfully generated reports in '{reports_dir.resolve()}'")
+
+    # Also sync to docs/ folder so both branch configurations work seamlessly
+    for item in reports_dir.rglob("*"):
+        if item.is_file():
+            rel = item.relative_to(reports_dir)
+            target = docs_dir / rel
+            ensure_dir(target.parent)
+            shutil.copy2(item, target)
+
+    print(f"[+] Successfully generated reports in '{reports_dir.resolve()}' and synced to '{docs_dir.resolve()}'")
 
 
 if __name__ == "__main__":
