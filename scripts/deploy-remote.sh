@@ -20,29 +20,45 @@ echo " Port:           ${APP_PORT}"
 echo " Timestamp:      $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 echo "=========================================================="
 
-# 1. Pull the new Docker container image
+# 1. Ensure Docker is installed on EC2
+if ! command -v docker &> /dev/null; then
+    echo "[*] Docker not found on EC2. Installing Docker CE automatically..."
+    sudo apt-get update -y
+    sudo apt-get install -y docker.io curl
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    sudo usermod -aG docker "$USER" || true
+    echo "[+] Docker installed successfully!"
+fi
+
+# 2. Pull the new Docker container image
 echo "[*] Pulling latest Docker image: ${IMAGE_URI}..."
-docker pull "${IMAGE_URI}"
+# Use sudo docker if user group is not yet refreshed in this subshell
+DOCKER_CMD="docker"
+if ! docker info &> /dev/null; then
+    DOCKER_CMD="sudo docker"
+fi
+$DOCKER_CMD pull "${IMAGE_URI}"
 
 # 2. Check for active container and tag current version for instant rollback
 HAD_RUNNING_CONTAINER=false
-if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+if $DOCKER_CMD ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
     echo "[*] Existing running container detected. Capturing rollback state..."
-    CURRENT_IMAGE_ID=$(docker inspect --format='{{.Image}}' "${CONTAINER_NAME}")
-    docker tag "${CURRENT_IMAGE_ID}" "${ROLLBACK_TAG}" || true
+    CURRENT_IMAGE_ID=$($DOCKER_CMD inspect --format='{{.Image}}' "${CONTAINER_NAME}")
+    $DOCKER_CMD tag "${CURRENT_IMAGE_ID}" "${ROLLBACK_TAG}" || true
     HAD_RUNNING_CONTAINER=true
     
     echo "[*] Stopping and removing previous container '${CONTAINER_NAME}'..."
-    docker stop "${CONTAINER_NAME}" || true
-    docker rm "${CONTAINER_NAME}" || true
-elif docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    $DOCKER_CMD stop "${CONTAINER_NAME}" || true
+    $DOCKER_CMD rm "${CONTAINER_NAME}" || true
+elif $DOCKER_CMD ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
     echo "[*] Removing stopped container '${CONTAINER_NAME}'..."
-    docker rm "${CONTAINER_NAME}" || true
+    $DOCKER_CMD rm "${CONTAINER_NAME}" || true
 fi
 
 # 3. Launch new container instance
 echo "[*] Starting new container instance '${CONTAINER_NAME}'..."
-docker run -d \
+$DOCKER_CMD run -d \
     --name "${CONTAINER_NAME}" \
     --restart always \
     -p "${APP_PORT}:5000" \
@@ -75,14 +91,14 @@ done
 if [ "$HEALTHY" = false ]; then
     echo "[!] CRITICAL: Container health check FAILED after $MAX_ATTEMPTS attempts!"
     echo "[!] Inspecting container logs:"
-    docker logs "${CONTAINER_NAME}" --tail 50 || true
+    $DOCKER_CMD logs "${CONTAINER_NAME}" --tail 50 || true
 
     if [ "$HAD_RUNNING_CONTAINER" = true ]; then
         echo "[!] Initiating automatic rollback to previous container image..."
-        docker stop "${CONTAINER_NAME}" || true
-        docker rm "${CONTAINER_NAME}" || true
+        $DOCKER_CMD stop "${CONTAINER_NAME}" || true
+        $DOCKER_CMD rm "${CONTAINER_NAME}" || true
         
-        docker run -d \
+        $DOCKER_CMD run -d \
             --name "${CONTAINER_NAME}" \
             --restart always \
             -p "${APP_PORT}:5000" \
@@ -96,9 +112,9 @@ fi
 
 # 6. Cleanup dangling / unused Docker images
 echo "[*] Pruning dangling Docker images to preserve disk space..."
-docker image prune -f || true
+$DOCKER_CMD image prune -f || true
 
 echo "=========================================================="
 echo " Deployment Successfully Completed!"
-echo " Container: $(docker ps -f name=${CONTAINER_NAME} --format 'table {{.ID}}\t{{.Status}}\t{{.Ports}}')"
+echo " Container: $($DOCKER_CMD ps -f name=${CONTAINER_NAME} --format 'table {{.ID}}\t{{.Status}}\t{{.Ports}}')"
 echo "=========================================================="

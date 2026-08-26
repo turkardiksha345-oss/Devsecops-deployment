@@ -73,30 +73,28 @@ jobs:
     needs: [security-scans]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
     steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
       - name: Download Security Reports Artifact
         uses: actions/download-artifact@v4
         with:
           name: security-reports-portal
           path: reports/
 
-      - name: Setup GitHub Pages
-        uses: actions/configure-pages@v5
+      - name: Deploy Static Security Portal to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          enablement: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./reports
+          publish_branch: gh-pages
+          force_orphan: true
         continue-on-error: true
-
-      - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: reports/
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
 
   # ============================================================================
   # Stage 6: Production Deployment to AWS EC2 (Main Branch Only)
